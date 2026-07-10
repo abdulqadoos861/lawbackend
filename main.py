@@ -62,45 +62,46 @@ def seed_database():
             db.commit()
             print("Successfully seeded database admins.")
 
-        # 3. Seed Initial Updates
-        if db.query(LawUpdate).count() == 0:
-            import datetime
-            now = datetime.datetime.utcnow()
-            updates_seed = [
-                LawUpdate(
-                    id=1,
-                    source_id=1,
-                    title="The National Commission for Human Rights (Amendment) Bill, 2026 - Bill No. 43 of 2026",
-                    url="https://na.gov.pk/en/bills.php",
-                    pdf_url="https://na.gov.pk/uploads/documents/bills/1719582210_928.pdf",
-                    category="Bill",
-                    date_found=now - datetime.timedelta(hours=10),
-                    is_notified=True
-                ),
-                LawUpdate(
-                    id=2,
-                    source_id=4,
-                    title="The Punjab Civil Servants (Amendment) Act, 2026 (Act VI of 2026)",
-                    url="http://punjablaws.gov.pk/laws/3482.html",
-                    pdf_url="http://punjablaws.gov.pk/laws/pdf/punjab_civil_servants_amendment_2026.pdf",
-                    category="Act",
-                    date_found=now - datetime.timedelta(hours=12),
-                    is_notified=True
-                ),
-                LawUpdate(
-                    id=3,
-                    source_id=2,
-                    title="The Islamabad Capital Territory Local Government (Amendment) Bill, 2026",
-                    url="https://senate.gov.pk/en/bills_status.php",
-                    pdf_url="https://senate.gov.pk/uploads/documents/bills/ict_local_govt_amend_2026.pdf",
-                    category="Bill",
-                    date_found=now - datetime.timedelta(hours=15),
-                    is_notified=True
-                )
-            ]
-            db.bulk_save_objects(updates_seed)
-            db.commit()
-            print("Successfully seeded initial law updates.")
+        # 3. Seed Initial Updates (Disabled - user cleared updates)
+        # if db.query(LawUpdate).count() == 0:
+        #     import datetime
+        #     now = datetime.datetime.utcnow()
+        #     updates_seed = [
+        #         LawUpdate(
+        #             id=1,
+        #             source_id=1,
+        #             title="The National Commission for Human Rights (Amendment) Bill, 2026 - Bill No. 43 of 2026",
+        #             url="https://na.gov.pk/en/bills.php",
+        #             pdf_url="https://na.gov.pk/uploads/documents/bills/1719582210_928.pdf",
+        #             category="Bill",
+        #             date_found=now - datetime.timedelta(hours=10),
+        #             is_notified=True
+        #         ),
+        #         LawUpdate(
+        #             id=2,
+        #             source_id=4,
+        #             title="The Punjab Civil Servants (Amendment) Act, 2026 (Act VI of 2026)",
+        #             url="http://punjablaws.gov.pk/laws/3482.html",
+        #             pdf_url="http://punjablaws.gov.pk/laws/pdf/punjab_civil_servants_amendment_2026.pdf",
+        #             category="Act",
+        #             date_found=now - datetime.timedelta(hours=12),
+        #             is_notified=True
+        #         ),
+        #         LawUpdate(
+        #             id=3,
+        #             source_id=2,
+        #             title="The Islamabad Capital Territory Local Government (Amendment) Bill, 2026",
+        #             url="https://senate.gov.pk/en/bills_status.php",
+        #             pdf_url="https://senate.gov.pk/uploads/documents/bills/ict_local_govt_amend_2026.pdf",
+        #             category="Bill",
+        #             date_found=now - datetime.timedelta(hours=15),
+        #             is_notified=True
+        #         )
+        #     ]
+        #     db.bulk_save_objects(updates_seed)
+        #     db.commit()
+        #     print("Successfully seeded initial law updates.")
+        pass
         # 4. Seed Default Admin Account
         from routes.auth_helpers import hash_password
         default_user = os.getenv("ADMIN_LOGIN_USERNAME", "admin").strip()
