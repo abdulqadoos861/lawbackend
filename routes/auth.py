@@ -1,11 +1,42 @@
 import datetime
 import secrets
+import threading
+import logging
 from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from db.database import get_db
-from db.models import AdminAccount, AdminSession
+from db.database import get_db, SessionLocal
+from db.models import AdminAccount, AdminSession, Source
 from .auth_helpers import verify_password, get_current_admin
+
+logger = logging.getLogger(__name__)
+
+def _run_crawl_in_background():
+    """Run the daily crawl in a background thread so login is not blocked."""
+    db = SessionLocal()
+    try:
+        from scraper.crawler import crawl_all_sources
+        today = datetime.date.today()
+        logger.info("First-login-of-day crawl triggered in background.")
+        crawl_all_sources(db, fallback=False, until_date=today)
+        logger.info("First-login-of-day crawl completed.")
+    except Exception as e:
+        logger.error(f"First-login-of-day crawl error: {e}")
+    finally:
+        db.close()
+
+def _trigger_crawl_if_needed(db: Session):
+    """Check if any source was crawled today. If not, trigger a crawl in a background thread."""
+    today_start = datetime.datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    already_crawled_today = db.query(Source).filter(
+        Source.last_crawled >= today_start
+    ).first()
+    if not already_crawled_today:
+        thread = threading.Thread(target=_run_crawl_in_background, daemon=True)
+        thread.start()
+        logger.info("Background crawl thread started for first login of the day.")
+        return True
+    return False
 
 router = APIRouter()
 
@@ -37,11 +68,15 @@ def login(payload: LoginSchema, db: Session = Depends(get_db)):
     db.add(session)
     db.commit()
 
+    # Trigger crawl in background if no crawl has run today
+    crawl_triggered = _trigger_crawl_if_needed(db)
+
     return {
         "token": token,
         "username": account.username,
         "role": account.role,
-        "expires_at": expires_at.isoformat()
+        "expires_at": expires_at.isoformat(),
+        "crawl_triggered": crawl_triggered
     }
 
 @router.post("/logout")
