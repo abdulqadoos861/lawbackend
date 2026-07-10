@@ -137,7 +137,7 @@ app = FastAPI(
 )
 
 # Configure CORS Middleware
-origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:3000")
+origins_raw = os.getenv("CORS_ORIGINS", "http://localhost:3000,https://abdul-rehman-hwbm.onrender.com")
 origins = [origin.strip() for origin in origins_raw.split(",") if origin.strip()]
 
 app.add_middleware(
