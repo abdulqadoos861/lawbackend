@@ -14,6 +14,19 @@ load_dotenv()
 # Initialize database schemas
 Base.metadata.create_all(bind=engine)
 
+# Database schema auto-migration
+def run_migrations():
+    from sqlalchemy import inspect, text
+    inspector = inspect(engine)
+    columns = [col["name"] for col in inspector.get_columns("admin_accounts")]
+    if "role" not in columns:
+        print("Migrating database: Adding 'role' column to 'admin_accounts' table...")
+        with engine.begin() as connection:
+            connection.execute(text("ALTER TABLE admin_accounts ADD COLUMN role VARCHAR DEFAULT 'moderator'"))
+        print("Migration completed successfully.")
+
+run_migrations()
+
 # Database seed function to populate targets if empty
 def seed_database():
     db = SessionLocal()
@@ -93,13 +106,19 @@ def seed_database():
         default_user = os.getenv("ADMIN_LOGIN_USERNAME", "admin").strip()
         default_pass = os.getenv("ADMIN_LOGIN_PASSWORD", "admin123").strip()
         
-        if db.query(AdminAccount).count() == 0:
+        db_acc = db.query(AdminAccount).filter(AdminAccount.username == default_user).first()
+        if not db_acc:
             print(f"Creating default admin account: {default_user}")
             hashed = hash_password(default_pass)
-            db_acc = AdminAccount(username=default_user, password_hash=hashed)
+            db_acc = AdminAccount(username=default_user, password_hash=hashed, role="admin")
             db.add(db_acc)
             db.commit()
             print("Default admin account seeded successfully.")
+        else:
+            if db_acc.role != "admin":
+                db_acc.role = "admin"
+                db.commit()
+                print("Default admin account role updated to 'admin'.")
             
     except Exception as e:
         print(f"Error seeding database: {e}")

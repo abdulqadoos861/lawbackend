@@ -44,3 +44,17 @@ def get_current_admin(
             detail="Session has expired or is invalid."
         )
     return session.admin_id
+
+def get_current_super_admin(
+    authorization: Optional[str] = Header(None),
+    db: Session = Depends(get_db)
+) -> AdminAccount:
+    """Dependency to validate AdminSession token, verify admin_id has super admin status, and return account."""
+    admin_id = get_current_admin(authorization, db)
+    admin_account = db.query(AdminAccount).filter(AdminAccount.id == admin_id).first()
+    if not admin_account or admin_account.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access forbidden: Super admin privilege required."
+        )
+    return admin_account

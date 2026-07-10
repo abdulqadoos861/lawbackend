@@ -4,15 +4,27 @@ from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr, HttpUrl
 from typing import List, Optional
 from db.database import get_db
-from db.models import Admin, Source
+from db.models import Admin, Source, AdminAccount
 from scraper.crawler import crawl_all_sources
-from .auth_helpers import get_current_admin
+from .auth_helpers import get_current_admin, get_current_super_admin
 
 router = APIRouter()
 
 # ---------------------------------------------------------------------------
 # Pydantic Schemas
 # ---------------------------------------------------------------------------
+
+class ModeratorCreateSchema(BaseModel):
+    username: str
+    password: str
+
+class ModeratorResponseSchema(BaseModel):
+    id: int
+    username: str
+    role: str
+
+    class Config:
+        from_attributes = True
 
 class AdminCreateSchema(BaseModel):
     name: Optional[str] = "Admin Officer"
@@ -266,3 +278,82 @@ def trigger_scrape(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Error executing scraper pipeline: {str(e)}",
         )
+
+
+# ---------------------------------------------------------------------------
+# Moderator Management Routes (restricted to Super Admins)
+# ---------------------------------------------------------------------------
+
+@router.post("/moderators", response_model=ModeratorResponseSchema, status_code=status.HTTP_201_CREATED)
+def add_moderator(
+    payload: ModeratorCreateSchema,
+    db: Session = Depends(get_db),
+    current_admin: AdminAccount = Depends(get_current_super_admin)
+):
+    """Create a new moderator account. Only accessible to Super Admins."""
+    username_cleaned = payload.username.strip()
+    if not username_cleaned:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Username cannot be empty."
+        )
+    if len(payload.password.strip()) < 6:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Password must be at least 6 characters long."
+        )
+
+    # Check duplicate username
+    exists = db.query(AdminAccount).filter(AdminAccount.username == username_cleaned).first()
+    if exists:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Moderator with username '{username_cleaned}' already exists."
+        )
+
+    from .auth_helpers import hash_password
+    hashed = hash_password(payload.password.strip())
+    new_moderator = AdminAccount(
+        username=username_cleaned,
+        password_hash=hashed,
+        role="moderator"
+    )
+    db.add(new_moderator)
+    db.commit()
+    db.refresh(new_moderator)
+    return new_moderator
+
+
+@router.get("/moderators", response_model=List[ModeratorResponseSchema])
+def list_moderators(
+    db: Session = Depends(get_db),
+    current_admin: AdminAccount = Depends(get_current_super_admin)
+):
+    """List all registered administrators and moderators. Only accessible to Super Admins."""
+    return db.query(AdminAccount).order_by(AdminAccount.id).all()
+
+
+@router.delete("/moderators/{moderator_id}")
+def delete_moderator(
+    moderator_id: int,
+    db: Session = Depends(get_db),
+    current_admin: AdminAccount = Depends(get_current_super_admin)
+):
+    """Remove a moderator or admin account. Only accessible to Super Admins."""
+    # Prevent self-deletion
+    if moderator_id == current_admin.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Self-deletion is not allowed."
+        )
+
+    account = db.query(AdminAccount).filter(AdminAccount.id == moderator_id).first()
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Account with ID {moderator_id} not found."
+        )
+
+    db.delete(account)
+    db.commit()
+    return {"success": True, "message": f"Successfully deleted moderator account: {account.username}"}

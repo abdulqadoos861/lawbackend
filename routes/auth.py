@@ -40,6 +40,7 @@ def login(payload: LoginSchema, db: Session = Depends(get_db)):
     return {
         "token": token,
         "username": account.username,
+        "role": account.role,
         "expires_at": expires_at.isoformat()
     }
 
@@ -52,8 +53,19 @@ def logout(authorization: str = Header(...), db: Session = Depends(get_db)):
     return {"success": True, "message": "Successfully logged out."}
 
 @router.get("/verify")
-def verify(admin_id: int = Depends(get_current_admin)):
-    return {"success": True, "admin_id": admin_id}
+def verify(admin_id: int = Depends(get_current_admin), db: Session = Depends(get_db)):
+    account = db.query(AdminAccount).filter(AdminAccount.id == admin_id).first()
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Admin account not found."
+        )
+    return {
+        "success": True,
+        "admin_id": admin_id,
+        "username": account.username,
+        "role": account.role
+    }
 
 
 class ChangePasswordSchema(BaseModel):
