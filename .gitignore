@@ -2,6 +2,5 @@
 .env.example
 __pycache__
 .pytest_cache
-.venv
 .vscode
 venv
