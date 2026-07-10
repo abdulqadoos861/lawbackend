@@ -6,6 +6,7 @@ from typing import List, Optional
 from db.database import get_db
 from db.models import Admin, Source
 from scraper.crawler import crawl_all_sources
+from .auth_helpers import get_current_admin
 
 router = APIRouter()
 
@@ -57,12 +58,12 @@ class SourceResponseSchema(BaseModel):
 # ---------------------------------------------------------------------------
 
 @router.get("/receivers", response_model=List[AdminResponseSchema])
-def get_receivers(db: Session = Depends(get_db)):
+def get_receivers(db: Session = Depends(get_db), admin_id: int = Depends(get_current_admin)):
     return db.query(Admin).all()
 
 
 @router.post("/receivers", response_model=AdminResponseSchema, status_code=status.HTTP_201_CREATED)
-def add_receiver(payload: AdminCreateSchema, db: Session = Depends(get_db)):
+def add_receiver(payload: AdminCreateSchema, db: Session = Depends(get_db), admin_id: int = Depends(get_current_admin)):
     exists = db.query(Admin).filter(Admin.email == payload.email).first()
     if exists:
         raise HTTPException(
@@ -77,7 +78,7 @@ def add_receiver(payload: AdminCreateSchema, db: Session = Depends(get_db)):
 
 
 @router.delete("/receivers/{id}")
-def delete_receiver(id: int, db: Session = Depends(get_db)):
+def delete_receiver(id: int, db: Session = Depends(get_db), admin_id: int = Depends(get_current_admin)):
     admin = db.query(Admin).filter(Admin.id == id).first()
     if not admin:
         raise HTTPException(
@@ -94,7 +95,7 @@ def delete_receiver(id: int, db: Session = Depends(get_db)):
 # ---------------------------------------------------------------------------
 
 @router.get("/sources", response_model=List[SourceResponseSchema])
-def list_sources(db: Session = Depends(get_db)):
+def list_sources(db: Session = Depends(get_db), admin_id: int = Depends(get_current_admin)):
     """Return all scraping sources with their active status."""
     sources = db.query(Source).order_by(Source.id).all()
     return [
@@ -111,7 +112,7 @@ def list_sources(db: Session = Depends(get_db)):
 
 
 @router.post("/sources", response_model=SourceResponseSchema, status_code=status.HTTP_201_CREATED)
-def add_source(payload: SourceCreateSchema, db: Session = Depends(get_db)):
+def add_source(payload: SourceCreateSchema, db: Session = Depends(get_db), admin_id: int = Depends(get_current_admin)):
     """Register a new website as a scraping source."""
     if payload.scraper_type not in VALID_SCRAPER_TYPES:
         raise HTTPException(
@@ -145,7 +146,7 @@ def add_source(payload: SourceCreateSchema, db: Session = Depends(get_db)):
 
 
 @router.patch("/sources/{source_id}", response_model=SourceResponseSchema)
-def update_source(source_id: int, payload: SourceUpdateSchema, db: Session = Depends(get_db)):
+def update_source(source_id: int, payload: SourceUpdateSchema, db: Session = Depends(get_db), admin_id: int = Depends(get_current_admin)):
     """Update name, URL, scraper type, or active status of an existing source."""
     source = db.query(Source).filter(Source.id == source_id).first()
     if not source:
@@ -180,7 +181,7 @@ def update_source(source_id: int, payload: SourceUpdateSchema, db: Session = Dep
 
 
 @router.post("/sources/{source_id}/toggle", response_model=SourceResponseSchema)
-def toggle_source(source_id: int, db: Session = Depends(get_db)):
+def toggle_source(source_id: int, db: Session = Depends(get_db), admin_id: int = Depends(get_current_admin)):
     """Quickly enable or disable a scraping source."""
     source = db.query(Source).filter(Source.id == source_id).first()
     if not source:
@@ -203,7 +204,7 @@ def toggle_source(source_id: int, db: Session = Depends(get_db)):
 
 
 @router.delete("/sources/{source_id}")
-def delete_source(source_id: int, db: Session = Depends(get_db)):
+def delete_source(source_id: int, db: Session = Depends(get_db), admin_id: int = Depends(get_current_admin)):
     """Remove a scraping source and all its associated law updates (cascade)."""
     source = db.query(Source).filter(Source.id == source_id).first()
     if not source:
@@ -230,6 +231,7 @@ def trigger_scrape(
         example="2024-01-01",
     ),
     db: Session = Depends(get_db),
+    admin_id: int = Depends(get_current_admin),
 ):
     """Manually trigger a crawl across all active sources.
 

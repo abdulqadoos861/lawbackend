@@ -38,3 +38,21 @@ class Admin(Base):
     id = Column(Integer, primary_key=True, index=True)
     name = Column(String, nullable=True)
     email = Column(String, unique=True, nullable=False, index=True)
+
+
+class AdminAccount(Base):
+    __tablename__ = "admin_accounts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True, nullable=False, index=True)
+    password_hash = Column(String, nullable=False)
+
+
+class AdminSession(Base):
+    __tablename__ = "admin_sessions"
+
+    id = Column(Integer, primary_key=True, index=True)
+    token = Column(String, unique=True, nullable=False, index=True)
+    admin_id = Column(Integer, ForeignKey("admin_accounts.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.datetime.utcnow)
+    expires_at = Column(DateTime, nullable=False)

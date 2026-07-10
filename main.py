@@ -5,8 +5,8 @@ from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 
 from db.database import engine, Base, SessionLocal
-from db.models import Source, LawUpdate, Admin
-from routes import updates, admin
+from db.models import Source, LawUpdate, Admin, AdminAccount
+from routes import updates, admin, auth
 from scraper.scheduler import start_scheduler, shutdown_scheduler
 
 load_dotenv()
@@ -88,6 +88,18 @@ def seed_database():
             db.bulk_save_objects(updates_seed)
             db.commit()
             print("Successfully seeded initial law updates.")
+        # 4. Seed Default Admin Account
+        from routes.auth_helpers import hash_password
+        default_user = os.getenv("ADMIN_LOGIN_USERNAME", "admin").strip()
+        default_pass = os.getenv("ADMIN_LOGIN_PASSWORD", "admin123").strip()
+        
+        if db.query(AdminAccount).count() == 0:
+            print(f"Creating default admin account: {default_user}")
+            hashed = hash_password(default_pass)
+            db_acc = AdminAccount(username=default_user, password_hash=hashed)
+            db.add(db_acc)
+            db.commit()
+            print("Default admin account seeded successfully.")
             
     except Exception as e:
         print(f"Error seeding database: {e}")
@@ -120,6 +132,7 @@ app.add_middleware(
 # Include Routers
 app.include_router(updates.router, prefix="/api", tags=["Updates"])
 app.include_router(admin.router, prefix="/api/admin", tags=["Admin Control"])
+app.include_router(auth.router, prefix="/api/auth", tags=["Auth"])
 
 # Startup Event
 @app.on_event("startup")
