@@ -22,17 +22,21 @@ def scheduled_crawl_job():
 
 def start_scheduler():
     if not scheduler.running:
-        # Schedule the crawling to run every day at 6:00 AM
+        # Run every 6 hours so crawls aren't missed if Render free-tier sleeps
+        # and the service is asleep at the exact 6 AM cron window
         scheduler.add_job(
-            scheduled_crawl_job, 
-            'cron', 
-            hour=6, 
-            minute=0, 
-            id='daily_crawl_job',
+            scheduled_crawl_job,
+            'interval',
+            hours=6,
+            id='crawl_job',
             replace_existing=True
         )
         scheduler.start()
-        logger.info("APScheduler Background Thread Started. Crawl task scheduled daily at 06:00 AM.")
+        logger.info("APScheduler Background Thread Started. Crawl task scheduled every 6 hours.")
+        # Run an immediate crawl on startup so fresh data is always loaded on wake-up
+        import threading
+        threading.Thread(target=scheduled_crawl_job, daemon=True).start()
+        logger.info("Immediate startup crawl triggered in background thread.")
 
 def shutdown_scheduler():
     if scheduler.running:
