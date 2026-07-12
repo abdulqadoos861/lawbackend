@@ -198,6 +198,12 @@ def crawl_site(source: Source, db: Session, fallback: bool = True, until_date: d
     if new_items_found:
         logger.info(f"Dispatching alerts for {len(new_items_found)} new items from {source.name}")
         send_alert(source.name, new_items_found, db)
+        # Mark all newly inserted updates as notified
+        db.query(LawUpdate).filter(
+            LawUpdate.source_id == source.id,
+            LawUpdate.is_notified == False
+        ).update({"is_notified": True})
+        db.commit()
 
     return new_items_found
 
