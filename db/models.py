@@ -10,7 +10,7 @@ class Source(Base):
     name = Column(String, nullable=False)
     url = Column(String, nullable=False)
     last_crawled = Column(DateTime, nullable=True)
-    is_active = Column(Boolean, default=True, nullable=False, server_default=text("1"))
+    is_active = Column(Boolean, default=True, nullable=False, server_default=text("true"))
     scraper_type = Column(String, default="generic", nullable=False, server_default=text("'generic'"))
 
     updates = relationship("LawUpdate", back_populates="source", cascade="all, delete-orphan")
